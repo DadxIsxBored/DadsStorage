@@ -87,6 +87,12 @@ if ($Package) {
         Move-Item -LiteralPath $artifact.FullName -Destination $archivedPath
     }
 
+    $folderPath = Join-Path $distRoot "DadsStorage-$($manifest.version_number)"
+    New-Item -ItemType Directory -Path $folderPath | Out-Null
+    foreach ($entry in $packageEntries.GetEnumerator()) {
+        Copy-Item -LiteralPath $entry.Value -Destination (Join-Path $folderPath $entry.Key)
+    }
+
     $zipPath = Join-Path $distRoot "DadsStorage-$($manifest.version_number).zip"
     $zip = [System.IO.Compression.ZipFile]::Open($zipPath, [System.IO.Compression.ZipArchiveMode]::Create)
     try {

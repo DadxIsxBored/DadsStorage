@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Rebuilt against BepInEx `5.4.23.5` from BepInExPack Valheim `5.4.2350`.
+
 ## 1.0.0
 
 - Created the standalone DadsStorage plugin identity and configuration files.

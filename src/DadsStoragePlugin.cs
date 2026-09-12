@@ -18,7 +18,7 @@ namespace DadsStorage;
 public class DadsStoragePlugin : BaseUnityPlugin
 {
     internal const string ModName = "DadsStorage";
-    internal const string ModVersion = "1.0.0";
+    internal const string ModVersion = "1.0.1";
     internal const string Author = "Dad_Is_Bored";
     internal const string ModGUID = "com.dadisbored.dadsstorage";
     internal const string KgGuid = "kg.ItemDrawers";

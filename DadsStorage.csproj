@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>DadsStorage</AssemblyName>
+    <RootNamespace>DadsStorage</RootNamespace>
+    <Version>1.0.0</Version>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <Deterministic>true</Deterministic>
+    <DebugType>portable</DebugType>
+    <NoWarn>$(NoWarn);CS0162;CS0168;CS0169;CS0414;CS0618;CS0649;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8619;CS8620;CS8622;CS8625;CS8767</NoWarn>
+    <ValheimManagedPath Condition="'$(ValheimManagedPath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Valheim\valheim_Data\Managed</ValheimManagedPath>
+    <PublicizedPath Condition="'$(PublicizedPath)' == ''">C:\Users\DudeB\ValheimModArchives\Default-Profile-Archive-20260911-115308-009\BuildRefs\Valheim-1.0.12-publicized-resolved</PublicizedPath>
+    <BepInExCorePath Condition="'$(BepInExCorePath)' == ''">C:\Users\DudeB\AppData\Roaming\Thunderstore Mod Manager\DataFolder\Valheim\profiles\Default\BepInEx\core</BepInExCorePath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\**\*.cs" />
+    <EmbeddedResource Include="resources\Example.yml" LogicalName="DadsStorage.Example.yml" />
+    <EmbeddedResource Include="resources\border.png" LogicalName="DadsStorage.assets.border.png" />
+    <EmbeddedResource Include="resources\translations\*.yml" LogicalName="DadsStorage.translations.%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="BepInEx"><HintPath>$(BepInExCorePath)\BepInEx.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="0Harmony"><HintPath>$(BepInExCorePath)\0Harmony.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_valheim"><HintPath>$(PublicizedPath)\assembly_valheim_publicized.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_utils"><HintPath>$(PublicizedPath)\assembly_utils_publicized.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="assembly_guiutils"><HintPath>$(PublicizedPath)\assembly_guiutils_publicized.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Splatform"><HintPath>$(PublicizedPath)\Splatform_publicized.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Backpacks"><HintPath>Libs\BackpacksAPI.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="ServerSync"><HintPath>Libs\ServerSync.dll</HintPath><Private>true</Private></Reference>
+    <Reference Include="netstandard"><HintPath>$(ValheimManagedPath)\netstandard.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Memory"><HintPath>$(ValheimManagedPath)\System.Memory.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine"><HintPath>$(ValheimManagedPath)\UnityEngine.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.CoreModule"><HintPath>$(ValheimManagedPath)\UnityEngine.CoreModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.AssetBundleModule"><HintPath>$(ValheimManagedPath)\UnityEngine.AssetBundleModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.ImageConversionModule"><HintPath>$(ValheimManagedPath)\UnityEngine.ImageConversionModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.IMGUIModule"><HintPath>$(ValheimManagedPath)\UnityEngine.IMGUIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.InputLegacyModule"><HintPath>$(ValheimManagedPath)\UnityEngine.InputLegacyModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.PhysicsModule"><HintPath>$(ValheimManagedPath)\UnityEngine.PhysicsModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UI"><HintPath>$(ValheimManagedPath)\UnityEngine.UI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="UnityEngine.UIModule"><HintPath>$(ValheimManagedPath)\UnityEngine.UIModule.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Unity.TextMeshPro"><HintPath>$(ValheimManagedPath)\Unity.TextMeshPro.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.46" PrivateAssets="all" />
+    <PackageReference Include="YamlDotNet" Version="13.1.0" />
+  </ItemGroup>
+
+  <Target Name="MergePrivateDependencies" AfterTargets="Build">
+    <ItemGroup>
+      <MergeAssemblies Include="$(TargetPath)" />
+      <MergeAssemblies Include="$(TargetDir)ServerSync.dll" />
+      <MergeAssemblies Include="$(TargetDir)BackpacksAPI.dll" />
+      <MergeAssemblies Include="$(TargetDir)YamlDotNet.dll" />
+    </ItemGroup>
+    <ILRepack Parallel="true" DebugInfo="true" Internalize="true" InputAssemblies="@(MergeAssemblies)" OutputFile="$(TargetPath)" TargetKind="SameAsPrimaryAssembly" LibraryPath="$(TargetDir);$(BepInExCorePath);$(PublicizedPath);$(ValheimManagedPath)" />
+  </Target>
+</Project>

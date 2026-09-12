@@ -1,0 +1,49 @@
+using System.Text;
+
+namespace DadsStorage.Patches.Favoriting;
+
+[HarmonyPatch(typeof(ItemDrop.ItemData))]
+internal static class TooltipRenderer
+{
+    [HarmonyPatch(nameof(ItemDrop.ItemData.GetTooltip), [
+        typeof(ItemDrop.ItemData),
+        typeof(int),
+        typeof(bool),
+        typeof(float),
+        typeof(int),
+        typeof(bool)
+    ])]
+    [HarmonyPostfix]
+    public static void GetTooltip(ItemDrop.ItemData item, bool crafting, ref string __result)
+    {
+        if (crafting || !DisplayTooltipHint.Value)
+        {
+            return;
+        }
+        StringBuilder stringBuilder = new StringBuilder(256);
+        stringBuilder.Append(__result);
+
+        UserConfig conf = UserConfig.GetPlayerConfig(Player.m_localPlayer.GetPlayerID());
+
+        if (conf.IsItemNameFavorited(item.m_shared))
+        {
+            string? color = ColorUtility.ToHtmlStringRGB(BorderColorFavoritedItem.Value);
+
+            stringBuilder.Append($"{Environment.NewLine}<color=#{color}>{FavoritedItemTooltip.Value}</color>");
+        }
+        else if (conf.IsSlotFavorited(item.m_gridPos))
+        {
+            string? color = ColorUtility.ToHtmlStringRGB(BorderColorFavoritedSlot.Value);
+
+            stringBuilder.Append($"{Environment.NewLine}<color=#{color}>{FavoritedSlotTooltip.Value}</color>");
+        }
+        else if (conf.IsSlotFavorited(item.m_gridPos) && conf.IsItemNameFavorited(item.m_shared))
+        {
+            string? color = ColorUtility.ToHtmlStringRGB(BorderColorFavoritedItemOnFavoritedSlot.Value);
+
+            stringBuilder.Append($"{Environment.NewLine}<color=#{color}>{ItemOnFavoritedSlotTooltip.Value}</color>");
+        }
+
+        __result = stringBuilder.ToString();
+    }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "DadsStorage",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/DadxIsxBored/DadsStorage",
+  "description": "Automatic storage, quick stack, container search, favorites, and YAML storage rules for Valheim 1.0.12.",
+  "dependencies": [
+    "denikson-BepInExPack_Valheim-5.4.2350"
+  ]
+}

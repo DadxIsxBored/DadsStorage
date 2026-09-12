@@ -1,0 +1,184 @@
+using System.Reflection.Emit;
+using DadsStorage.APIs.Compatibility.WardIsLove;
+
+namespace DadsStorage.Patches;
+
+[HarmonyPatch(typeof(Container), nameof(Container.Awake))]
+internal static class ContainerAwakePatch
+{
+    internal static int pausedSeconds = 0;
+    internal static readonly int storingPausedHash = "storingPaused".GetStableHashCode();
+
+    internal static bool TryAddContainer(Container container)
+    {
+        if (!container || container.m_nview == null || container.m_nview.GetZDO() == null)
+            return false;
+        Character? ch = container.GetComponentInParent<Character>();
+        if (ch != null && ch != Player.m_localPlayer)
+            return false;
+        if (!container.m_nview.IsValid() || container.GetInventory() == null)
+            return false;
+        if (container.m_nview.GetZDO().GetLong(ZDOVars.s_creator) == 0L)
+            return false;
+
+        try
+        {
+            if (WardIsLovePlugin.IsLoaded() && WardIsLovePlugin.WardEnabled()!.Value)
+            {
+                if (!WardMonoscript.CheckAccess(container.transform.position, flash: false, wardCheck: true))
+                    return false;
+                Boxes.AddContainer(container);
+                return true;
+            }
+
+            if (PrivateArea.CheckAccess(container.transform.position, flash: false, wardCheck: true))
+            {
+                Boxes.AddContainer(container);
+                return true;
+            }
+        }
+        catch
+        {
+        }
+
+        return false;
+    }
+
+    private static void Postfix(Container __instance)
+    {
+        Functions.LogContainerStatus(__instance);
+
+        if (__instance.m_nview == null || __instance.m_nview.GetZDO() == null)
+            return;
+
+        __instance.m_nview.Unregister("RequestPause");
+        __instance.m_nview.Register<bool>("RequestPause", (sender, pause) => Boxes.RPC_RequestPause(sender, pause, __instance));
+
+        TryAddContainer(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(Container), nameof(Container.OnDestroyed))]
+internal static class ContainerOnDestroyedPatch
+{
+    private static void Postfix(Container __instance)
+    {
+        if (__instance.m_nview.GetZDO().GetLong(ZDOVars.s_creator) == 0L || __instance.GetInventory() == null || !__instance.m_nview.IsValid())
+            return;
+        Boxes.RemoveContainer(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(WearNTear), nameof(WearNTear.OnDestroy))]
+static class WearNTearOnDestroyPatch
+{
+	private static readonly List<Container> Found = new();
+
+	static void Prefix(WearNTear __instance)
+	{
+		if (Boxes.Containers.Count == 0) return;
+
+		Found.Clear();
+		__instance.GetComponentsInChildren(Found);
+		for (int i = 0; i < Found.Count; ++i)
+			Boxes.RemoveContainer(Found[i]);
+
+		Found.Clear();
+		__instance.GetComponentsInParent(false, Found);
+		for (int i = 0; i < Found.Count; ++i)
+			Boxes.RemoveContainer(Found[i]);
+
+		Found.Clear();
+	}
+}
+
+[HarmonyPatch(typeof(Container), nameof(Container.SetInUse))]
+static class ContainerSetInUseClearWithoutOwnershipPatch
+{
+    static void Prefix(Container __instance, bool inUse)
+    {
+        if (!inUse && !__instance.m_nview.IsOwner())
+            __instance.m_inUse = false;
+    }
+}
+
+// Add container to list on container interaction. Catches anything missed during Awake.
+[HarmonyPatch(typeof(Container), nameof(Container.Interact))]
+static class ContainerInteractPatch
+{
+    static void Postfix(Container __instance, Humanoid character, bool hold, bool alt)
+    {
+        long playerId = Game.instance.GetPlayerProfile().GetPlayerID();
+        if ((__instance.m_checkGuardStone && !PrivateArea.CheckAccess(__instance.transform.position)) || !__instance.CheckAccess(playerId))
+            return;
+        ContainerAwakePatch.TryAddContainer(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(Player), nameof(Player.OnSpawned))]
+internal static class PlayerOnSpawnedContainerScanPatch
+{
+    private static void Postfix(Player __instance)
+    {
+        if (__instance != Player.m_localPlayer) return;
+
+        foreach (Container container in Resources.FindObjectsOfTypeAll<Container>())
+            ContainerAwakePatch.TryAddContainer(container);
+    }
+}
+
+// Postfix ZNetScene Awake to get all containers loaded by the game.
+[HarmonyPatch(typeof(ZNetScene), nameof(ZNetScene.Awake))]
+internal static class ZNetSceneAwakePatch
+{
+    private static void Postfix(ZNetScene __instance)
+    {
+        foreach (Container? container in Resources.FindObjectsOfTypeAll<Container>())
+        {
+            Functions.LogIfBuildDebug($"Found container by the name of {container.name} in your game.");
+        }
+    }
+}
+
+[HarmonyPatch(typeof(Player), nameof(Player.UpdateTeleport))]
+public static class PlayerUpdateTeleportPatchCleanupContainers
+{
+	public static void Prefix(float dt)
+	{
+		if (Player.m_localPlayer == null || !Player.m_localPlayer.m_teleporting)
+			return;
+
+		Boxes.PruneDestroyed();
+	}
+}
+
+[HarmonyPatch(typeof(Inventory), nameof(Inventory.StackAll), typeof(Inventory), typeof(bool))]
+#if DEBUG
+[HarmonyEmitIL]
+#endif
+public static class Inventory_StackAll_Patch
+{
+    public static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+    {
+        MethodInfo getAllItems = AccessTools.DeclaredMethod(typeof(Inventory), nameof(Inventory.GetAllItems), Type.EmptyTypes);
+        ConstructorInfo listConstructor = AccessTools.Constructor(typeof(List<ItemDrop.ItemData>), [typeof(IEnumerable<ItemDrop.ItemData>)]);
+        MethodInfo filterItems = AccessTools.DeclaredMethod(typeof(Inventory_StackAll_Patch), nameof(FilterItems));
+
+        return new CodeMatcher(instructions)
+			.MatchForward(false, new CodeMatch(OpCodes.Callvirt, getAllItems), new CodeMatch(OpCodes.Newobj, listConstructor))
+            .Advance(2)
+            .Insert(new CodeInstruction(OpCodes.Ldarg_1), new CodeInstruction(OpCodes.Call, filterItems))
+            .InstructionEnumeration();
+    }
+
+    public static List<ItemDrop.ItemData> FilterItems(List<ItemDrop.ItemData> items, Inventory fromInventory)
+    {
+        if (!Player.m_localPlayer || fromInventory != Player.m_localPlayer.GetInventory()) return items;
+        return items.Where(ShouldIncludeItem).ToList();
+    }
+
+    public static bool ShouldIncludeItem(ItemDrop.ItemData item)
+    {
+        return !VanillaContainers.CantStoreFavorite(item, UserConfig.GetPlayerConfig(Player.m_localPlayer.GetPlayerID()));
+    }
+}
